@@ -13,9 +13,12 @@ class AppFixtures extends Fixture
 
     private $passwordEncoder;
 
+    private $faker;
+
     public function __construct(UserPasswordEncoderInterface $passwordEncoder)
     {
         $this->passwordEncoder = $passwordEncoder;
+        $this->faker = \Faker\Factory::create();
 
     }
 
@@ -29,14 +32,18 @@ class AppFixtures extends Fixture
     {
         $user = $this->getReference('user_admin') ;
 
-        $blogPost = new BlogPost();
-        $blogPost->setTitle('A first post!');
-        $blogPost->setPublished(new \DateTime('2018-07-01 12:00:00'));
-        $blogPost->setContent('Post text!');
-        $blogPost->setAuthor($user);
-        $blogPost->setSlug('a-first-post');
+        for ($i = 0; $i >100;$i++)
+        {
+            $blogPost = new BlogPost();
+            $blogPost->setTitle($this->faker->realText(30));
+            $blogPost->setPublished(new \DateTime($this->faker->dateTime));
+            $blogPost->setContent($this->faker->realText());
+            $blogPost->setAuthor($user);
+            $blogPost->setSlug('a-first-post');
 
-        $manager->persist($blogPost);
+            $manager->persist($blogPost);
+        }
+
 
         $blogPost = new BlogPost();
         $blogPost->setTitle('A second post!');
