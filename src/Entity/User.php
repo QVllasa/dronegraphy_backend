@@ -6,11 +6,24 @@ use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Annotation\Groups;
+
+use Symfony\Component\Validator\Constraints as Assert;
+
 
 /**
- * @ApiResource()
+ * @ApiResource(
+ *     itemOperations={"get"},
+ *     collectionOperations={"post"},
+ *     normalizationContext={
+ *          "groups"={"read"}
+ *     }
+ * )
  * @ORM\Entity(repositoryClass="App\Repository\UserRepository")
+ *@UniqueEntity("username")
+ * @UniqueEntity("email")
  */
 class User implements UserInterface
 {
@@ -18,26 +31,48 @@ class User implements UserInterface
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
+     * @Groups({"read"})
      */
     private $id;
 
     /**
      * @ORM\Column(type="string", length=255)
+     * @Groups({"read"})
+     * @Assert\NotBlank()
+     * @Assert\Length(min=6, max=255)
      */
     private $username;
 
     /**
      * @ORM\Column(type="string", length=255)
+     * @Assert\NotBlank()
+     * @Assert\Regex(
+     *     pattern="/(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9]).{7,}/",
+     *     message="Passwort muss mind. 7 zeichen lang sein und sowohl Klein- als auch Großbuchstaben und eine Zahl beinhalten."
+     * )
      */
     private $password;
 
     /**
+     * @Assert\NotBlank()
+     * @Assert\Expression(
+     *     "this.getPassword() === this.getRetypedPassword()",
+     *     message="Passwörter stimmen nicht überein."
+     * )
+     */
+    private $retypedPassword;
+
+    /**
      * @ORM\Column(type="string", length=255)
+     * @Groups({"read"})
+     * @Assert\NotBlank()
      */
     private $name;
 
     /**
      * @ORM\Column(type="string", length=255)
+     * @Assert\NotBlank()
+     * @Assert\Email()
      */
     private $email;
 
@@ -144,6 +179,20 @@ class User implements UserInterface
     {
 
     }
+
+
+    public function getRetypedPassword()
+    {
+        return $this->retypedPassword;
+    }
+
+
+    public function setRetypedPassword($retypedPassword): void
+    {
+        $this->retypedPassword = $retypedPassword;
+    }
+
+
 
 
 }
