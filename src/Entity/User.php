@@ -34,6 +34,9 @@ use Symfony\Component\Validator\Constraints as Assert;
  *     "post"={
  *     "denormalization_context"={
  *          "groups"={"post"}
+ *     },
+ *     "normalization_context"={
+ *          "groups"={"get"}
  *     }
  *     }
  * }
@@ -51,6 +54,8 @@ class User implements UserInterface
     const ROLE_ADMIN = 'ROLE_ADMIN';
     const ROLE_SUPERADMIN = 'ROLE_SUPERADMIN';
 
+    const DEFAULT_ROLES = [self::ROLE_COMMENTATOR];
+
     /**
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -61,7 +66,7 @@ class User implements UserInterface
 
     /**
      * @ORM\Column(type="string", length=255)
-     * @Groups({"get", "post"})
+     * @Groups({"get", "post", "get-comment-with-author", "get-blog-post-with-author"})
      * @Assert\NotBlank()
      * @Assert\Length(min=6, max=255)
      */
@@ -90,7 +95,7 @@ class User implements UserInterface
 
     /**
      * @ORM\Column(type="string", length=255)
-     * @Groups({"get", "put", "post"})
+     * @Groups({"get", "put", "post", "get-comment-with-author", "get-blog-post-with-author"})
      * @Assert\NotBlank()
      */
     private $name;
@@ -116,11 +121,17 @@ class User implements UserInterface
      */
     private $comments;
 
+    /**
+     * @ORM\Column(type="simple_array", length=200)
+     */
+    private $roles;
+
 
     public function __construct()
     {
         $this->posts= new ArrayCollection();
         $this->comments = new ArrayCollection();
+        $this->roles = self::DEFAULT_ROLES;
     }
 
     public function getId(): ?int
@@ -192,9 +203,15 @@ class User implements UserInterface
         return $this->comments;
     }
 
-    public function getRoles()
+    public function getRoles(): array
     {
-        return ['ROLE_USER'];
+        return $this->roles;
+    }
+
+    public function setRoles(array $roles)
+    {
+        $this->roles = $roles;
+
     }
 
     public function getSalt()
