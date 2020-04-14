@@ -24,7 +24,6 @@ class UserAttributeNormalizer implements ContextAwareNormalizerInterface,Seriali
 
     public function __construct(TokenStorageInterface $tokenStorage)
     {
-
         $this->tokenStorage = $tokenStorage;
     }
 

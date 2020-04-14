@@ -8,8 +8,9 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Core\Validator\Constraints\UserPassword;
 use Symfony\Component\Serializer\Annotation\Groups;
-
+use App\Controller\ResetPasswordAction;
 use Symfony\Component\Validator\Constraints as Assert;
 
 
@@ -27,7 +28,19 @@ use Symfony\Component\Validator\Constraints as Assert;
  *      "access_control"="is_granted('IS_AUTHENTICATED_FULLY') and object == user",
  *     "denormalization_context"={
  *          "groups"={"put"}
+ *          },
+ *     "normalization_context"={
+ * "groups"={"get"}
  *     }
+ *     },
+ *      "put-reset-password"={
+ *      "access_control"="is_granted('IS_AUTHENTICATED_FULLY') and object == user",
+ *      "method"="PUT",
+ *     "path"="/users/{id}/reset-password",
+ *     "controller"=ResetPasswordAction::class,
+ *     "denormalization_context"={
+ *          "groups"={"put-reset-password"}
+ *          }
  *     }
  * },
  *     collectionOperations={
@@ -67,15 +80,15 @@ class User implements UserInterface
     /**
      * @ORM\Column(type="string", length=255)
      * @Groups({"get", "post", "get-comment-with-author", "get-blog-post-with-author"})
-     * @Assert\NotBlank()
+     * @Assert\NotBlank(groups={"post"})
      * @Assert\Length(min=6, max=255)
      */
     private $username;
 
     /**
      * @ORM\Column(type="string", length=255)
-    * @Groups({"put", "post"})
-     * @Assert\NotBlank()
+     * @Groups({"put", "post"})
+     * @Assert\NotBlank(groups={"post"})
      * @Assert\Regex(
      *     pattern="/(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9]).{7,}/",
      *     message="Passwort muss mind. 7 zeichen lang sein und sowohl Klein- als auch Großbuchstaben und eine Zahl beinhalten."
@@ -84,27 +97,55 @@ class User implements UserInterface
     private $password;
 
     /**
-     * @Assert\NotBlank()
-     * @Groups({"put", "post"})
+     * @Assert\NotBlank(groups={"post"})
+     * @Groups({"post"})
      * @Assert\Expression(
      *     "this.getPassword() === this.getRetypedPassword()",
-     *     message="Passwörter stimmen nicht überein."
+     *     message="Passwörter stimmen nicht überein.",
+     *     groups={"post"}
      * )
      */
     private $retypedPassword;
 
     /**
-     * @ORM\Column(type="string", length=255)
-     * @Groups({"get", "put", "post", "get-comment-with-author", "get-blog-post-with-author"})
+     * @Groups({"put-reset-password"})
      * @Assert\NotBlank()
+     * @Assert\Regex(
+     *     pattern="/(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9]).{7,}/",
+     *     message="Passwort muss mind. 7 zeichen lang sein und sowohl Klein- als auch Großbuchstaben und eine Zahl beinhalten."
+     * )
+     */
+    private $newPassword;
+
+    /**
+     * @Assert\NotBlank()
+     * @Groups({"put-reset-password"})
+     * @Assert\Expression(
+     *     "this.getNewPassword() === this.getNewRetypedPassword()",
+     *     message="Passwörter stimmen nicht überein."
+     * )
+     */
+    private $newRetypedPassword;
+
+    /**
+     * @Groups({"put-reset-password"})
+     * @Assert\NotBlank()
+     * @UserPassword()
+     */
+    private $oldPassword;
+
+    /**
+     * @ORM\Column(type="string", length=255)
+     * @Groups({"get", "post", "get-comment-with-author", "get-blog-post-with-author"})
+     * @Assert\NotBlank(groups={"post", "put"})
      */
     private $name;
 
     /**
      * @ORM\Column(type="string", length=255)
      * @Groups({"put", "post", "get-admin", "get-owner"})
-     * @Assert\NotBlank()
-     * @Assert\Email()
+     * @Assert\NotBlank(groups={"post", "put"})
+     * @Assert\Email(groups={"post", "put"})
      */
     private $email;
 
@@ -129,12 +170,29 @@ class User implements UserInterface
      */
     private $roles;
 
+    /**
+     * @ORM\Column(type="integer", nullable=true)
+     */
+    private $passwordChangeDate;
+
+    /**
+     * @ORM\Column(type="boolean")
+     */
+    private $enabled;
+
+    /**
+     * @ORM\Column(type="string", length=40, nullable=true)
+     */
+    private $confirmationToken;
+
 
     public function __construct()
     {
-        $this->posts= new ArrayCollection();
+        $this->posts = new ArrayCollection();
         $this->comments = new ArrayCollection();
         $this->roles = self::DEFAULT_ROLES;
+        $this->enabled = false;
+        $this->confirmationToken = null;
     }
 
     public function getId(): ?int
@@ -238,6 +296,78 @@ class User implements UserInterface
     {
         $this->retypedPassword = $retypedPassword;
     }
+
+
+    public function getNewPassword(): ?string
+    {
+        return $this->newPassword;
+    }
+
+
+    public function setNewPassword($newPassword): void
+    {
+        $this->newPassword = $newPassword;
+    }
+
+
+    public function getNewRetypedPassword(): ?string
+    {
+        return $this->newRetypedPassword;
+    }
+
+
+    public function setNewRetypedPassword($newRetypedPassword): void
+    {
+        $this->newRetypedPassword = $newRetypedPassword;
+    }
+
+
+    public function getOldPassword(): ?string
+    {
+        return $this->oldPassword;
+    }
+
+
+    public function setOldPassword($oldPassword): void
+    {
+        $this->oldPassword = $oldPassword;
+    }
+
+
+    public function getPasswordChangeDate()
+    {
+        return $this->passwordChangeDate;
+    }
+
+
+    public function setPasswordChangeDate($passwordChangeDate): void
+    {
+        $this->passwordChangeDate = $passwordChangeDate;
+    }
+
+
+    public function isEnabled(): bool
+    {
+        return $this->enabled;
+    }
+
+    public function setEnabled(bool $enabled): void
+    {
+        $this->enabled = $enabled;
+    }
+
+
+    public function getConfirmationToken()
+    {
+        return $this->confirmationToken;
+    }
+
+
+    public function setConfirmationToken($confirmationToken): void
+    {
+        $this->confirmationToken = $confirmationToken;
+    }
+
 
 
 
