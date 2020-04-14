@@ -1,7 +1,7 @@
 <?php
 
 
-namespace App\Controller;
+namespace App\Security;
 
 
 use App\Entity\User;
@@ -15,7 +15,7 @@ class UserEnabledChecker implements UserCheckerInterface
     public function checkPreAuth(UserInterface $user)
     {
       if (!$user instanceof User){
-
+        return;
       }
 
       if(!$user->isEnabled()){
